@@ -469,3 +469,69 @@ if "data" in st.session_state:
         )
 
         st.plotly_chart(fig, use_container_width=True)
+        
+        # Mission status at selected observation time
+        st.subheader("Mission Status")
+
+        sun_row = current[current["Body"] == "Sun"]
+        earth_row = current[current["Body"] == "Earth"]
+
+        if not sun_row.empty and not earth_row.empty:
+            sun_el = float(
+                sun_row["Elevation (degrees)"].iloc[0]
+            )
+            earth_el = float(
+                earth_row["Elevation (degrees)"].iloc[0]
+            )
+
+            sun_visible = sun_el > 0
+            earth_visible = earth_el > 0
+
+            c1, c2, c3 = st.columns(3)
+
+            with c1:
+                st.metric(
+                    "Solar elevation",
+                    f"{sun_el:.2f}°"
+                )
+                st.caption(
+                    "Above ideal horizon"
+                    if sun_visible
+                    else "Below ideal horizon"
+                )
+
+            with c2:
+                st.metric(
+                    "Earth elevation",
+                    f"{earth_el:.2f}°"
+                )
+                st.caption(
+                    "Above ideal horizon"
+                    if earth_visible
+                    else "Below ideal horizon"
+                )
+
+            with c3:
+                st.metric(
+                    "Joint visibility",
+                    "YES" if sun_visible and earth_visible
+                    else "NO"
+                )
+
+            if sun_visible and earth_visible:
+                st.success(
+                    "Both Sun and Earth are geometrically "
+                    "visible at this observation time."
+                )
+            else:
+                st.warning(
+                    "Simultaneous Sun/Earth geometric "
+                    "visibility is unavailable at this time."
+                )
+
+            st.caption(
+                "Geometric analysis only. Actual solar "
+                "power and communications depend on terrain, "
+                "hardware, and other mission conditions."
+            )
+
