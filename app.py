@@ -1,4 +1,3 @@
-
 from datetime import date, datetime, timedelta, timezone
 
 import numpy as np
@@ -534,4 +533,154 @@ if "data" in st.session_state:
                 "power and communications depend on terrain, "
                 "hardware, and other mission conditions."
             )
+            
+# LunaWindow: clearance sensitivity add-on
+if "data" in st.session_state:
+    st.divider()
+    st.header("Landing Window Robustness")
+    st.caption(
+        "Test how minimum Sun and Earth elevation angles "
+        "affect estimated joint visibility. These are "
+        "hypothetical margins, not a terrain model."
+    )
+
+    def estimate_joint_hours(site_data, min_sun, min_earth):
+        pivot = site_data.pivot_table(
+            index="UTC",
+            columns="Body",
+            values="Elevation (degrees)",
+            aggfunc="mean"
+        ).sort_index()
+
+        if not {"Sun", "Earth"}.issubset(pivot.columns):
+            return 0.0
+
+        pivot = pivot[["Sun", "Earth"]].dropna()
+        hours = 0.0
+
+        for i in range(len(pivot) - 1):
+            row0 = pivot.iloc[i]
+            row1 = pivot.iloc[i + 1]
+
+            s0 = float(row0["Sun"]) - min_sun
+            s1 = float(row1["Sun"]) - min_sun
+            e0 = float(row0["Earth"]) - min_earth
+            e1 = float(row1["Earth"]) - min_earth
+
+            cuts = [0.0, 1.0]
+
+            for v0, v1 in ((s0, s1), (e0, e1)):
+                if v1 != v0:
+                    f = -v0 / (v1 - v0)
+                    if 0.0 < f < 1.0:
+                        cuts.append(f)
+
+            cuts = sorted(set(cuts))
+
+            delta_hours = (
+                pivot.index[i + 1] - pivot.index[i]
+            ).total_seconds() / 3600
+
+            for a, b in zip(cuts, cuts[1:]):
+                middle = (a + b) / 2
+                sun = s0 + (s1 - s0) * middle
+                earth = e0 + (e1 - e0) * middle
+
+                if sun > 0 and earth > 0:
+                    hours += delta_hours * (b - a)
+
+        return hours
+
+    sun_clear = st.slider(
+        "Minimum Sun elevation (degrees)",
+        0.0, 5.0, 0.0, 0.5,
+        key="sun_clearance"
+    )
+
+    earth_clear = st.slider(
+        "Minimum Earth elevation (degrees)",
+        0.0, 5.0, 0.0, 0.5,
+        key="earth_clearance"
+    )
+
+    data = st.session_state.data
+    rows = []
+
+    for site in ("A", "B"):
+        sub = data[data["Site"] == site]
+
+        base = estimate_joint_hours(sub, 0.0, 0.0)
+        margin = estimate_joint_hours(
+            sub, sun_clear, earth_clear
+        )
+
+        rows.append({
+            "Site": site,
+            "Ideal overlap (hours)": round(base, 3),
+            "With margins (hours)": round(margin, 3),
+            "Overlap lost (hours)": round(
+                max(base - margin, 0), 3
+            )
+        })
+
+    table = pd.DataFrame(rows)
+    st.dataframe(
+        table,
+        hide_index=True,
+        use_container_width=True
+    )
+
+    sensitivity = []
+
+    for threshold in (0.0, 0.5, 1.0, 2.0, 3.0, 5.0):
+        for site in ("A", "B"):
+            sub = data[data["Site"] == site]
+
+            sensitivity.append({
+                "Site": site,
+                "Clearance (degrees)": threshold,
+                "Estimated joint hours":
+                    estimate_joint_hours(
+                        sub, threshold, threshold
+                    )
+            })
+
+    curve = px.line(
+        pd.DataFrame(sensitivity),
+        x="Clearance (degrees)",
+        y="Estimated joint hours",
+        color="Site",
+        markers=True,
+        title="Visibility sensitivity to clearance"
+    )
+
+    curve.update_yaxes(rangemode="tozero")
+    st.plotly_chart(curve, use_container_width=True)
+
+    best = max(
+        rows,
+        key=lambda r: r["With margins (hours)"]
+    )
+
+    if abs(
+        rows[0]["With margins (hours)"] -
+        rows[1]["With margins (hours)"]
+    ) < 0.001:
+        st.info(
+            "Both sites are tied on this visibility metric."
+        )
+    else:
+        st.info(
+            f"Site {best['Site']} provides more estimated "
+            "joint visibility at the chosen margins. "
+            "This is not an overall landing safety ranking."
+        )
+
+    st.warning(
+        "Windows use linear interpolation between "
+        "NASA Horizons samples. Clearance margins do not "
+        "model actual lunar terrain, eclipses, power "
+        "generation, or communication link budgets."
+    )
+
 
