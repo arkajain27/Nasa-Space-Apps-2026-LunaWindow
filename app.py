@@ -696,6 +696,71 @@ if "data" in st.session_state:
 
     curve.update_yaxes(rangemode="tozero")
     st.plotly_chart(curve, use_container_width=True)
+    
+    # Automated sensitivity experiments
+    st.subheader("Engineering Sensitivity Experiments")
+
+    scenarios = [
+        ("Baseline", 0.0, 0.0),
+        ("Solar constraint", 0.5, 0.0),
+        ("Communication constraint", 0.0, 0.5),
+        ("Combined constraint", 0.5, 0.5)
+    ]
+
+    experiment_results = []
+
+    for scenario, sun_limit, earth_limit in scenarios:
+        for site in ("A", "B"):
+            site_data = data[data["Site"] == site]
+
+            hours = estimate_joint_hours(
+                site_data, sun_limit, earth_limit
+            )
+
+            experiment_results.append({
+                "Scenario": scenario,
+                "Site": site,
+                "Sun minimum (deg)": sun_limit,
+                "Earth minimum (deg)": earth_limit,
+                "Joint visibility (hours)": round(hours, 4)
+            })
+
+    experiments_df = pd.DataFrame(experiment_results)
+
+    st.dataframe(
+        experiments_df,
+        hide_index=True,
+        use_container_width=True
+    )
+
+    experiment_chart = px.bar(
+        experiments_df,
+        x="Scenario",
+        y="Joint visibility (hours)",
+        color="Site",
+        barmode="group",
+        text="Joint visibility (hours)",
+        title="Comparing Landing-Site Visibility Constraints"
+    )
+
+    experiment_chart.update_traces(
+        texttemplate="%{text:.3f} h",
+        textposition="outside"
+    )
+
+    experiment_chart.update_yaxes(rangemode="tozero")
+
+    st.plotly_chart(
+        experiment_chart,
+        use_container_width=True
+    )
+
+    st.download_button(
+        "Export sensitivity experiments (CSV)",
+        experiments_df.to_csv(index=False),
+        file_name="lunawindow_sensitivity.csv",
+        mime="text/csv"
+    )
 
     best = max(
         rows,
