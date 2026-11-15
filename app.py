@@ -635,25 +635,35 @@ if "data" in st.session_state:
         use_container_width=True
     )
 
-    # Interactive comparison using the selected margins
+    # Compare ideal and margin-adjusted visibility
+    comparison_long = table.melt(
+        id_vars="Site",
+        value_vars=[
+            "Ideal overlap (hours)",
+            "With margins (hours)"
+        ],
+        var_name="Scenario",
+        value_name="Hours"
+    )
+
     live_chart = px.bar(
-        table,
+        comparison_long,
         x="Site",
-        y="With margins (hours)",
-        color="Site",
-        text="With margins (hours)",
-        title="Visibility With Selected Clearance Requirements"
+        y="Hours",
+        color="Scenario",
+        barmode="group",
+        text="Hours",
+        title="How Clearance Requirements Affect Visibility"
     )
 
     live_chart.update_traces(
-        texttemplate="%{text:.2f} h",
+        texttemplate="%{text:.3f} h",
         textposition="outside"
     )
 
     live_chart.update_layout(
-        height=350,
-        showlegend=False,
-        yaxis_title="Estimated joint visibility (hours)"
+        height=380,
+        yaxis_title="Estimated visibility (hours)"
     )
 
     live_chart.update_yaxes(rangemode="tozero")
