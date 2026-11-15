@@ -602,6 +602,11 @@ if "data" in st.session_state:
         0.0, 5.0, 0.0, 0.5,
         key="earth_clearance"
     )
+    
+    st.info(
+        f"Active requirements: Sun ≥ {sun_clear:.1f}° | "
+        f"Earth ≥ {earth_clear:.1f}°"
+    )
 
     data = st.session_state.data
     rows = []
@@ -629,6 +634,31 @@ if "data" in st.session_state:
         hide_index=True,
         use_container_width=True
     )
+
+    # Interactive comparison using the selected margins
+    live_chart = px.bar(
+        table,
+        x="Site",
+        y="With margins (hours)",
+        color="Site",
+        text="With margins (hours)",
+        title="Visibility With Selected Clearance Requirements"
+    )
+
+    live_chart.update_traces(
+        texttemplate="%{text:.2f} h",
+        textposition="outside"
+    )
+
+    live_chart.update_layout(
+        height=350,
+        showlegend=False,
+        yaxis_title="Estimated joint visibility (hours)"
+    )
+
+    live_chart.update_yaxes(rangemode="tozero")
+
+    st.plotly_chart(live_chart, use_container_width=True)
 
     sensitivity = []
 
