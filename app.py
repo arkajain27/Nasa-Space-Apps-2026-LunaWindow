@@ -117,3 +117,77 @@ if "data" in st.session_state:
     )
 else:
     st.info("Choose two locations and click Analyze to start.")
+# Lightweight 3D Moon visualization
+if "data" in st.session_state:
+    import plotly.graph_objects as go
+
+    st.divider()
+    st.subheader("3D Lunar Site Explorer")
+    st.caption(
+        "Schematic lunar globe. Site markers use your coordinates. "
+        "Surface terrain is not modeled."
+    )
+
+    longitude, latitude = np.meshgrid(
+        np.linspace(-np.pi, np.pi, 48),
+        np.linspace(-np.pi / 2, np.pi / 2, 28)
+    )
+
+    x = np.cos(latitude) * np.cos(longitude)
+    y = np.cos(latitude) * np.sin(longitude)
+    z = np.sin(latitude)
+
+    moon = go.Figure()
+
+    moon.add_trace(go.Surface(
+        x=x, y=y, z=z,
+        colorscale=[
+            [0, "#364759"],
+            [1, "#9aa9b9"]
+        ],
+        showscale=False,
+        opacity=0.95,
+        hoverinfo="skip"
+    ))
+
+    sites = [
+        ("Site A", lat_a, lon_a, "#49e5af"),
+        ("Site B", lat_b, lon_b, "#ffb454")
+    ]
+
+    for name, lat, lon, color in sites:
+        a = np.radians(lat)
+        b = np.radians(lon)
+
+        radius = 1.035
+        sx = radius * np.cos(a) * np.cos(b)
+        sy = radius * np.cos(a) * np.sin(b)
+        sz = radius * np.sin(a)
+
+        moon.add_trace(go.Scatter3d(
+            x=[sx], y=[sy], z=[sz],
+            mode="markers+text",
+            marker=dict(size=7, color=color),
+            text=[name],
+            textposition="top center",
+            name=name
+        ))
+
+    moon.update_layout(
+        height=450,
+        margin=dict(l=0, r=0, t=0, b=0),
+        paper_bgcolor="#10151c",
+        font=dict(color="white"),
+        scene=dict(
+            xaxis=dict(visible=False),
+            yaxis=dict(visible=False),
+            zaxis=dict(visible=False),
+            bgcolor="#10151c",
+            aspectmode="cube",
+            camera=dict(eye=dict(
+                x=0.7, y=0.7, z=-2.4
+            ))
+        )
+    )
+
+    st.plotly_chart(moon, use_container_width=True)
