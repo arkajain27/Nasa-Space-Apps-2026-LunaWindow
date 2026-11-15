@@ -338,6 +338,18 @@ if "data" in st.session_state:
             showlegend=False
         )
 
+        
+        # Show operational windows against the full analyzed period
+        times = pd.to_datetime(
+            st.session_state.data["UTC"], utc=True
+        )
+        
+        timeline.update_xaxes(
+            range=[times.min(), times.max()],
+            title="Mission timeline (UTC)"
+        )
+
+
         st.plotly_chart(timeline, use_container_width=True)
 
     else:
